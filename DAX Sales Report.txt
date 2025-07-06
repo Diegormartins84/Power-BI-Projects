@@ -1,0 +1,85 @@
+DAX Sales Report
+
+AVG Price Units Sold = SUM(F_Financials[Sale Price]) / SUM(F_Financials[Units Sold])
+
+Last Year = CALCULATE(
+    [Total Sales],
+    SAMEPERIODLASTYEAR(D_Calendario[Data_ref]))
+
+Manufacturing Price % de diferença de Sale Price = 
+VAR __BASELINE_VALUE = SUM('F_Financials'[Sale Price])
+VAR __VALUE_TO_COMPARE = SUM('F_Financials'[Manufacturing Price])
+RETURN
+	IF(
+		NOT ISBLANK(__VALUE_TO_COMPARE),
+		DIVIDE(__VALUE_TO_COMPARE - __BASELINE_VALUE, __BASELINE_VALUE)
+	)
+
+Maximo Sold = MAX(F_Financials[Units Sold])
+
+Média de  Sales por Segment = 
+AVERAGEX(
+	KEEPFILTERS(VALUES('F_Financials'[Segment])),
+	CALCULATE(SUM('F_Financials'[ Sales]))
+)
+
+Meta = [Total de Vendas] * 1.3
+
+Outlier = CALCULATE(
+    [Total de Unidades Vendidas],
+    FILTER(
+        VALUES(F_Financials[Product]),
+        COUNTROWS(FILTER(F_Financials, [Total de Unidades Vendidas] >= 2150)) >0
+))
+
+Profit Previous Month = 
+    CALCULATE(
+        SUM(F_Financials[Profit]),
+            PREVIOUSMONTH(D_Calendario[Data_ref]))
+
+Sales diference = DIVIDE([Total Sales],[Last Year])
+
+Top 3 Product = CALCULATE(
+        [Total Sales],
+        TOPN(3,ALL(F_Financials[Product]),[Total Sales]),
+        VALUES(F_Financials[Product]))
+
+Total acumulado de  Sales em Date = 
+CALCULATE(
+	SUM('F_Financials'[ Sales]),
+	FILTER(
+		ALLSELECTED('F_Financials'[Date]),
+		ISONORAFTER('F_Financials'[Date], MAX('F_Financials'[Date]), DESC)
+	)
+)
+
+Total acumulado de  Sales em Segment = 
+CALCULATE(
+	SUM('F_Financials'[ Sales]),
+	FILTER(
+		ALLSELECTED('F_Financials'[Segment]),
+		ISONORAFTER('F_Financials'[Segment], MAX('F_Financials'[Segment]), DESC)
+	)
+)
+
+Total Acumulado de Sales em Date = 
+    CALCULATE(
+        SUM(F_Financials[ Sales]),
+            FILTER(
+                ALLSELECTED(F_Financials[Date]),
+                ISONORAFTER(F_Financials[Date],MAX(F_Financials[Date]),DESC)))
+
+Total de Unidades Vendidas = SUMX(F_Financials,F_Financials[Units Sold])
+
+Total de Vendas = SUMX(F_Financials,F_Financials[ Sales])
+
+Total Sales = SUMX(F_Financials,F_Financials[ Sales])
+
+Total Sales for 2013 = 
+    CALCULATE(SUM(F_Financials[ Sales]),
+        YEAR(D_Calendario[Data_ref])=2013)
+
+Total Sales for 2014 = 
+    CALCULATE(SUM(F_Financials[ Sales]),
+        YEAR(D_Calendario[Data_ref])=2014)
+

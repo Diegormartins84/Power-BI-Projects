@@ -1,0 +1,224 @@
+DAX Projetos Orç
+
+01 Oportunidades = COUNTROWS(fProjeto)
+
+02 Projetos Fechados = CALCULATE(
+    COUNTROWS(fProjeto),
+    fProjeto[Data Início] <> BLANK()
+)
+
+03 Total de Leads = [01 Oportunidades] - [02 Projetos Fechados]
+
+04 Total Orçamento = CALCULATE(
+    SUM(fProjeto[Orçamento]),
+    fProjeto[Data Início] <> BLANK()
+)
+
+05 Total Pago = CALCULATE(
+    SUM(fProjeto[Negociação]),
+    fProjeto[Data Início] <> BLANK()
+)
+
+06 Total Desconto = [04 Total Orçamento] - [05 Total Pago]
+
+------------------------------------------------------------
+
+07 % de Consumo = 
+    DIVIDE(
+        [05 Total Pago],
+        [04 Total Orçamento]
+    )
+
+------------------------------------------------------------
+
+08 Orcado Acum = 
+    CALCULATE(
+        [04 Total Orçamento],
+        FILTER(
+            ALL(dCalendario),
+            dCalendario[data_ref] <= MAX(dCalendario[data_ref])
+        )
+    )
+
+------------------------------------------------------------
+
+09 Pago Acum = 
+    CALCULATE(
+        [05 Total Pago],
+        FILTER(
+            ALL(dCalendario[data_ref]),
+            dCalendario[data_ref] <= MAX(dCalendario[data_ref])
+        )
+    )
+
+------------------------------------------------------------
+
+10 Acum Pago Ajuste = 
+VAR _Data_filtro = MAX(dCalendario_aux[data_ref])
+VAR _Resultado = 
+    CALCULATE(
+        [09 Pago Acum],
+        KEEPFILTERS(dCalendario[data_ref] <= _Data_filtro)
+    )
+RETURN
+_Resultado
+
+------------------------------------------------------------
+
+11 Valor Orçado YoY = 
+VAR _VOyoy =
+    CALCULATE(
+        [04 Total Orçamento],
+        SAMEPERIODLASTYEAR(dCalendario[data_ref])
+    )
+RETURN
+IF(_VOyoy <> BLANK(),
+    _VOyoy,
+     0)
+
+------------------------------------------------------------
+
+12 Valor Pago YoY = 
+    CALCULATE(
+        [05 Total Pago],
+        SAMEPERIODLASTYEAR(dCalendario[data_ref])
+    )
+/*
+VAR _VPyoy1 = 
+    CALCULATE(
+        [05 Total Pago],
+        SAMEPERIODLASTYEAR(dCalendario[data_ref])
+    )
+VAR _VPyoy = DIVIDE( _VPyoy1 , [05 Total Pago]  ) -_VPyoy1 
+
+RETURN
+IF(
+    _VPyoy <> BLANK(),
+    _VPyoy,
+    blank()
+) */
+
+------------------------------------------------------------
+
+13 Orçamento Acumulado CurvaS = 
+VAR AnoAtual = YEAR(MAX(dCalendario[data_ref]))
+RETURN
+    CALCULATE(
+        [04 Total Orçamento],
+        FILTER(
+            ALL(fProjeto),
+            YEAR(fProjeto[Data Início]) = AnoAtual && fProjeto[Data Início] <= MAX(dCalendario[data_ref])
+        ),
+        ALL(dCalendario),
+        dCalendario[data_ref] <= MAX(dCalendario[data_ref])
+    )
+
+------------------------------------------------------------
+
+14 Pago Acumulado CurvaS = 
+VAR AnoAtual = YEAR(MAX(dCalendario[data_ref]))
+RETURN
+    CALCULATE(
+        [05 Total Pago],
+        FILTER(
+            ALL(fProjeto),
+            YEAR(fProjeto[Data Início]) = AnoAtual && fProjeto[Data Início] <= MAX(dCalendario[data_ref])
+        ),
+        ALL(dCalendario),
+        dCalendario[data_ref] <= MAX(dCalendario[data_ref])
+    )
+
+------------------------------------------------------------
+
+15 Rank Projetos Fechados = 
+    RANKX(
+        ALL(dGerente),
+        [02 Projetos Fechados]
+    )
+
+------------------------------------------------------------
+
+16 Max Projetos Fechados = 
+    MAXX(
+        dGerente,
+        [02 Projetos Fechados]
+         )
+
+------------------------------------------------------------
+
+17 TopN = 
+    CALCULATE(
+        [02 Projetos Fechados],
+    TOPN(
+        1,
+        fProjeto,
+        [15 Rank Projetos Fechados]
+    )
+    )
+
+------------------------------------------------------------
+
+18 Gerente com Mais Projetos Fechados = 
+VAR GerentesComContagem = 
+    ADDCOLUMNS(
+        VALUES('dGerente'[Gerente Responsável]),
+        "ContagemProjetosFechados", 
+        CALCULATE([02 Projetos Fechados], 
+        fProjeto[Gerente Responsável] = fProjeto[Gerente Responsável])
+    )
+VAR GerenteComMaiorContagem = 
+    TOPN(1, GerentesComContagem, [ContagemProjetosFechados], DESC)
+RETURN
+    SELECTCOLUMNS(GerenteComMaiorContagem, "Gerente", [Gerente Responsável])
+
+------------------------------------------------------------
+
+19 Max Pago = 
+    MAXX(
+        dGerente,
+        [05 Total Pago]
+         )
+
+------------------------------------------------------------
+
+20 Valor Pago YoY % = 
+    VAR ValorAtual = [05 Total Pago]
+    VAR ValorAnterior = 
+        CALCULATE(
+            [05 Total Pago],
+            SAMEPERIODLASTYEAR(dCalendario[data_ref])
+        )
+
+    RETURN
+        DIVIDE(ValorAtual - ValorAnterior, ValorAnterior)
+
+------------------------------------------------------------
+
+21 Total Pago Formatado = CALCULATE(
+    SUM(fProjeto[Negociação]),
+    fProjeto[Data Início] <> BLANK()
+)
+
+------------------------------------------------------------
+
+22 Valor Pago YoY % = 
+VAR ValorAtual = [05 Total Pago]
+VAR ValorAnterior = 
+    CALCULATE(
+        [05 Total Pago],
+        SAMEPERIODLASTYEAR(dCalendario[data_ref])
+    )
+
+RETURN
+    DIVIDE(ValorAtual - ValorAnterior, ValorAnterior)
+
+------------------------------------------------------------
+
+23 Projetos Fechado Acum = 
+    CALCULATE(
+        [02 Projetos Fechados],
+        FILTER(
+            ALL(dCalendario),
+            dCalendario[data_ref] <= MAX(dCalendario[data_ref])
+        )
+    )
