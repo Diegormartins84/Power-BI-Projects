@@ -1,0 +1,39 @@
+DAX RH
+
+% Func F = CALCULATE([Func Ativos],D_GENERO[Genero] = "F") / [Func Ativos]
+
+% Func M = CALCULATE([Func Ativos],D_GENERO[Genero] = "M") / [Func Ativos]
+
+Contagem Cargos = CALCULATE(COUNT(F_PeopleAnalytics[id_cargo]),F_PeopleAnalytics[Data de Demissao]<>BLANK())
+
+Contratações = COUNTROWS(F_PeopleAnalytics)
+
+Desloc Barras = 
+    VAR vFAtivos = 
+        [Func Ativos]
+    VAR vTabela = 
+        ALL(D_UF[Cidade])
+    VAR vMaior_valor = 
+        MAXX(vTabela,[Func Ativos])
+RETURN
+    vMaior_valor - vFAtivos * 0.5
+
+Folha Salarial = SUM(F_PeopleAnalytics[Salario])
+
+Func Ativos = CALCULATE([Contratações], 
+                FILTER(ALL(D_CALENDARIO[Data_ref]),D_CALENDARIO[Data_ref] <= MAX(D_CALENDARIO[Data_ref]))) -
+                CALCULATE([Func Desligados], 
+                FILTER(ALL(D_CALENDARIO[Data_ref]),D_CALENDARIO[Data_ref] <= MAX(D_CALENDARIO[Data_ref])))
+
+Func Desligados = 
+CALCULATE(
+    COUNTROWS(F_PeopleAnalytics),
+    F_PeopleAnalytics[Data de Demissao]<>BLANK()
+)
+
+Func Desligados (gráfico) = CALCULATE(-COUNTROWS(F_PeopleAnalytics),F_PeopleAnalytics[Data de Demissao]<>BLANK())
+
+Média Avaliação = AVERAGE(F_PeopleAnalytics[Avaliação do Funcionário])
+
+Média Salárial = AVERAGE(F_PeopleAnalytics[Salario])
+

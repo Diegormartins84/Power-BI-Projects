@@ -1,0 +1,26 @@
+DAX Orçamento
+
+01 Valor Orc = CALCULATE(SUM(F_Orcamento[Orçado]))
+
+02 Valor Realiz = CALCULATE(SUM(F_Gastos[Gasto]))
+
+03 % Realiz = DIVIDE([02 Valor Realiz],[01 Valor Orc])
+
+04 % Salvo = 1-([03 % Realiz])
+
+05 $ Saldo = [01 Valor Orc]-[02 Valor Realiz]
+
+06 Valor Max = [01 Valor Orc]*1.15
+
+07 KPI = IF([03 % Realiz]<1,"🟢","🔴")
+
+08 % Share = DIVIDE([01 Valor Orc],CALCULATE([01 Valor Orc],ALL(F_Orcamento)),0)
+
+09 Centro Custo = 
+        VAR V_CONTAT = CONCATENATEX(D_Centro_Custo,D_Centro_Custo[Centro de Custos],", ")
+        VAR V_FILTRO = IF(ISCROSSFILTERED(D_Centro_Custo[Centro de Custos]),"S","N")
+        RETURN
+        IF(V_FILTRO="S",V_CONTAT,"Todos")
+
+10 Ranking = RANKX(ALL(D_Centro_Custo),[02 Valor Realiz])
+

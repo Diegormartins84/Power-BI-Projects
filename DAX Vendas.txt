@@ -1,0 +1,102 @@
+DAX Vendas
+
+00 Vendas Geral = CALCULATE(SUMX(Fato_venda,Fato_venda[Qtde]*Fato_venda[Pr_Unit]))
+
+01 Vendas Valid = 
+        // EXEMPLO 1
+        // CALCULATE(SUMX(Fato_venda;Fato_venda[Qtde]*Fato_venda[Pr_Unit]);Fato_venda[Situacao]="N")
+        // EXEMPLO 2 REUTILIZANDO MEDIDAS
+        CALCULATE([00 Vendas Geral],Fato_venda[Situacao]="N")
+
+02 Vendas Cancel = CALCULATE([00 Vendas Geral],Fato_venda[Situacao]="C")
+
+03 Vendas ALL = CALCULATE([01 Vendas Valid],ALL(Fato_venda))
+
+04 % Partic = DIVIDE([01 Vendas Valid],[03 Vendas ALL])
+
+05 Vendas ALLSELECT = CALCULATE([01 Vendas Valid],ALLSELECTED(Fato_venda))
+
+06 Vendas C/ Vnd = 
+        // OPÇÃO 1
+        CALCULATE([01 Vendas Valid],Fato_venda[Cod_Vend]<>BLANK())
+        // OPÇÃO 2
+        //CALCULATE(SUMX(Fato_venda;Fato_venda[Qtde]*Fato_venda[Pr_Unit]);
+        //        Fato_venda[Situacao]="N";
+        //        Fato_venda[Cod_Vend]<>BLANK()
+        //)
+        //OPÇÃO 3
+//        CALCULATE(SUMX(Fato_venda;Fato_venda[Qtde]*Fato_venda[Pr_Unit]);
+//       FILTER(Fato_venda;
+//          Fato_venda[Situacao]="N" &&
+//          Fato_venda[Cod_Vend]<>BLANK()
+//      )
+//      )
+
+07 Vendas S/ Vend = CALCULATE([01 Vendas Valid],Fato_venda[Cod_Vend]=BLANK())
+
+08 Qtd Ln S/ Vend = CALCULATE(COUNTROWS(Fato_venda),Fato_venda[Cod_Vend]=BLANK())
+
+09 Qtd Ln C/ Vend = CALCULATE(COUNTROWS(Fato_venda),Fato_venda[Cod_Vend]<>BLANK())
+
+10 Qtd Vnd Normal = CALCULATE(COUNTROWS(Fato_venda),Fato_venda[Situacao]="N")
+
+11 Qtd Vnd Cancel = CALCULATE(COUNTROWS(Fato_venda),Fato_venda[Situacao]="C")
+
+12 Custo Venda = CALCULATE(SUMX(Fato_venda,Fato_venda[Qtde]*Fato_venda[Pr_custo]),Fato_venda[Situacao]="N")
+
+13 % Lucro = DIVIDE([01 Vendas Valid],[12 Custo Venda])-1
+
+14 Lucro Bruto = [01 Vendas Valid]-[12 Custo Venda]
+
+15 Val Meta = SUM(Fato_meta[Valor_meta])
+
+16 % Meta = DIVIDE([06 Vendas C/ Vnd],[15 Val Meta],0)
+
+17 % Rest = 
+        IF(1-[16 % Meta]<0.0,0,1-[16 % Meta])
+
+18 Val YOY = CALCULATE([01 Vendas Valid],SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref]))
+
+19 VAL MOM = CALCULATE([01 Vendas Valid],PREVIOUSMONTH(D_CALENDARIO[Data_ref]))
+
+20 Val Mes Seguinte = CALCULATE([01 Vendas Valid],NEXTMONTH(D_CALENDARIO[Data_ref]))
+
+21 Val Acum 12 M = CALCULATE([01 Vendas Valid],
+        DATESINPERIOD(D_CALENDARIO[Data_ref],
+        LASTDATE(D_CALENDARIO[Data_ref]),-12,MONTH)
+        )
+
+22 Val Acum 6 M = CALCULATE([01 Vendas Valid],
+                            DATESINPERIOD(D_CALENDARIO[Data_ref],
+                            LASTDATE(D_CALENDARIO[Data_ref]),-6,MONTH)
+)
+
+23 Val Acum D = CALCULATE([01 Vendas Valid],
+                            DATESINPERIOD(D_CALENDARIO[Data_ref],
+                            LASTDATE(D_CALENDARIO[Data_ref]),P_MES_ACUM[Valor P_MES_ACUM]*-1,MONTH)
+)
+
+24 Simula Vendas = ([01 Vendas Valid]*P_SIMULA[Valor P_SIMULA])
+
+25 Simula Vendas = ([01 Vendas Valid]*P_SIMULA[Valor P_SIMULA])+[01 Vendas Valid]
+
+26 % MOM = 
+        // VALOR CONTEXTO ATUAL
+        VAR V_VAL_ATUAL = CALCULATE([01 Vendas Valid])
+        // VALOR CONTEXTO MODIFICADO
+        VAR V_VAL_ANTERIOR = CALCULATE([01 Vendas Valid],PREVIOUSMONTH(D_CALENDARIO[Data_ref]))
+        // CALCULO
+        VAR V_CALC = DIVIDE(V_VAL_ATUAL,V_VAL_ANTERIOR)-1
+        RETURN
+        IF(V_VAL_ANTERIOR=BLANK(),BLANK(),V_CALC)
+
+27 Val Max = [06 Vendas C/ Vnd]*1.2
+
+28 KPI = IF([16 % Meta]<1,"🔴","🟢")
+
+29 VendedorX = IF(HASONEFILTER(D_Vendedor[Nome_Vend]),values(D_Vendedor[Nome_Vend]),"Todos")
+
+30 teste % Vendas Vs Meta = 
+ VAR Calculo = DIVIDE(CALCULATE([01 Vendas Valid],Fato_venda[Cod_Vend]<>BLANK()),SUM(Fato_meta[Valor_meta]),0)
+ VAR Percentual = FORMAT(Calculo,"#%")
+ RETURN IF(Calculo > 0,"↑"&Percentual,"↓"&Percentual)
