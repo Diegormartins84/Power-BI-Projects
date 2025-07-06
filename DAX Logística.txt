@@ -1,0 +1,219 @@
+DAX Logística
+
+01 Total Faturamento = SUM(F_Logistica[R$ Faturados])
+
+02 Total Faturamento X = SUMX(F_Logistica,F_Logistica[R$ Faturados])
+
+03 Total Pedidos = CALCULATE(DISTINCTCOUNT(F_Logistica[Nº Pedido]))
+
+04 Entregues = 
+CALCULATE(
+    [03 Total Pedidos],
+    F_Logistica[Data Entrega Real] <> BLANK(),
+    USERELATIONSHIP(D_CALENDARIO[Data_ref],F_Logistica[Data Entrega Real])
+)
+
+05 Total Motorista = DISTINCTCOUNT(F_Logistica[id_motorista])
+
+06 Total Itens = SUM(F_Logistica[Itens])
+
+07 Total Devolução = SUM(F_Logistica[ Qtd Devolução])
+
+08 Total Devolução X = SUMX(F_Logistica,F_Logistica[ Qtd Devolução])
+
+09 Qtd On Time (No prazo) = CALCULATE(
+        [03 Total Pedidos],
+        F_Logistica[On Time Delivery] = "On Time"
+)
+
+10 Qtd On Time (Fora do prazo) = 
+CALCULATE(
+    [03 Total Pedidos],
+    F_Logistica[On Time Delivery] = "Atraso"
+)
+
+11 Qtd In Full = CALCULATE(
+    [04 Entregues],
+    F_Logistica[In Full Delivery] = "In Full"
+)
+
+12 % In Full = DIVIDE([11 Qtd In Full],[04 Entregues])
+
+13 % On Time = DIVIDE([09 Qtd On Time (No prazo)],[04 Entregues])
+
+14 % OTIF = ([12 % In Full] * [13 % On Time])
+
+15 Order Fill Rate = 
+AVERAGEX(
+    F_Logistica,
+    DATEDIFF(F_Logistica[Data Emissão Pedido],F_Logistica[Saída para Entrega],DAY)
+)
+
+16 Order Cycle Time = 
+AVERAGEX(
+    F_Logistica,
+    DATEDIFF(F_Logistica[Data Emissão Pedido],F_Logistica[Data Entrega Real],DAY)
+)
+
+17 % OTIF LY = 
+VAR vLY = 
+CALCULATE(
+    [14 % OTIF],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([14 % OTIF] <> BLANK(), vLY)
+
+18 % OTIF auxiliar = 1 - [14 % OTIF]
+
+19 Em aberto = 
+CALCULATE(
+    [03 Total Pedidos] - [04 Entregues],
+    FILTER(
+        ALL(D_CALENDARIO),
+        D_CALENDARIO[Data_ref] <= MAX(D_CALENDARIO[Data_ref])
+    )
+)
+
+20 % In Full (entregues) = 
+VAR vInFull = 
+CALCULATE(
+    [04 Entregues],
+    F_Logistica[id_mot_dev] = 1
+)
+RETURN
+DIVIDE(vInFull , [04 Entregues])
+
+21 No prazo (On Time < 10) = 
+CALCULATE([04 Entregues],
+F_Logistica[Prazo Realizado] <= 10
+)
+
+22 % InFull LY = 
+VAR vLY = 
+CALCULATE(
+    [12 % In Full],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([12 % In Full] <> BLANK(), vLY)
+
+23 % OnTime LY = 
+VAR vLY = 
+CALCULATE(
+    [13 % On Time],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([13 % On Time] <> BLANK(), vLY)
+
+24 Faturamento LY = 
+VAR vLY = 
+CALCULATE(
+    [02 Total Faturamento X],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([02 Total Faturamento X] <> BLANK(), vLY)
+
+25 OTIF Meta = [14 % OTIF] * 1.2
+
+26 Variação Faturamento LY = 
+    DIVIDE(
+    [02 Total Faturamento X] - [24 Faturamento LY] , 
+    [24 Faturamento LY] , 
+    0 )
+
+27 Variação Faturamento LY texto = 
+VAR Variacao = DIVIDE(
+    [02 Total Faturamento X] - [24 Faturamento LY] , 
+    [24 Faturamento LY] , 
+    0 ) * 100
+RETURN
+    IF(Variacao > 0 , "🡡 " & FORMAT(Variacao, "0.00") & "%",
+    IF(Variacao < 0 ,  "🡣 " & FORMAT(Variacao, "0.00") & "%",
+    FORMAT(Variacao, "0.00") & "%"
+    )
+)
+
+28 Faturamento LY texto = 
+    VAR FaturamentoAnual = [24 Faturamento LY]
+    RETURN
+        SWITCH(
+            TRUE(),
+            ABS(FaturamentoAnual) >= 1000000000, "R$ " & FORMAT(FaturamentoAnual / 1000000000, "0.00") & "Bi",
+            ABS(FaturamentoAnual) >= 1000000, "R$ " & FORMAT(FaturamentoAnual / 1000000, "0.00") & "Mi",
+            ABS(FaturamentoAnual) >= 1000, "R$ " & FORMAT(FaturamentoAnual / 1000, "0.00") & "M",
+            "R$ " & FORMAT(FaturamentoAnual, "0.00")
+        )
+
+29 Faturamento ly card = [27 Variação Faturamento LY texto] & " vs Ano Anterior"
+
+30 Pedidos LY = 
+VAR vLY = 
+CALCULATE(
+    [03 Total Pedidos],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([03 Total Pedidos] <> BLANK(), vLY)
+
+31 Variação Pedidos LY texto = 
+    VAR Variacao = DIVIDE(
+        [03 Total Pedidos] - [30 Pedidos LY] , 
+        [30 Pedidos LY] , 
+        0 ) * 100
+    RETURN
+        IF(Variacao > 0 , "🡡 " & FORMAT(Variacao, "0.00") & "%",
+        IF(Variacao < 0 ,  "🡣 " & FORMAT(Variacao, "0.00") & "%",
+        FORMAT(Variacao, "0.00") & "%"
+        )
+)
+
+32 Qtd InFull LY = 
+VAR vLY = 
+CALCULATE(
+    [11 Qtd In Full],
+    SAMEPERIODLASTYEAR(D_CALENDARIO[Data_ref])
+)
+RETURN
+IF([11 Qtd In Full] <> BLANK(), vLY)
+
+33 Variação InFull LY texto = 
+    VAR Variacao = DIVIDE(
+        [11 Qtd In Full] - [32 Qtd InFull LY] , 
+        [32 Qtd InFull LY] , 
+        0 ) * 100
+    RETURN
+        IF(Variacao > 0 , "🡡 " & FORMAT(Variacao, "0.00") & "%",
+        IF(Variacao < 0 ,  "🡣 " & FORMAT(Variacao, "0.00") & "%",
+        FORMAT(Variacao, "0.00") & "%"
+        )
+)
+
+34 Faturamento texto = 
+    VAR FaturamentoAnual = [01 Total Faturamento]
+    RETURN
+        SWITCH(
+            TRUE(),
+            ABS(FaturamentoAnual) >= 1000000000, "R$ " & FORMAT(FaturamentoAnual / 1000000000, "0.00") & "Bi",
+            ABS(FaturamentoAnual) >= 1000000, "R$ " & FORMAT(FaturamentoAnual / 1000000, "0.00") & "Mi",
+            ABS(FaturamentoAnual) >= 1000, "R$ " & FORMAT(FaturamentoAnual / 1000, "0.00") & "M",
+            "R$ " & FORMAT(FaturamentoAnual, "0.00")
+        )
+
+35 Pedidos texto = 
+    VAR FaturamentoAnual = [03 Total Pedidos]
+    RETURN
+        SWITCH(
+            TRUE(),
+            ABS(FaturamentoAnual) >= 1000000000, "R$ " & FORMAT(FaturamentoAnual / 1000000000, "0.00") & "Bi",
+            ABS(FaturamentoAnual) >= 1000000, "R$ " & FORMAT(FaturamentoAnual / 1000000, "0.00") & "Mi",
+            ABS(FaturamentoAnual) >= 1000, "R$ " & FORMAT(FaturamentoAnual / 1000, "0.00") & "M",
+            "R$ " & FORMAT(FaturamentoAnual, "0.00")
+        )
+
+36 Ticket Médio = DIVIDE([01 Total Faturamento] , [03 Total Pedidos])
+
+
+
