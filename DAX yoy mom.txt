@@ -1,0 +1,77 @@
+Mesmo período CHEIO
+
+Faturamento YoY = calculate( [faturamento], sameperiodlastyear(calendario[data]))
+
+Faturamento MoM = calculate( [faturamento], 
+			dateadd(calendário[data], -1, MONTH) )
+
+
+faturamento yoy2 = 
+var DataultimaVenda = 
+	calculate(
+	lastdate(vendas[data.pedido]),
+	removefilters(calendário) -- remove os filtros da tabela, no caso a ultima data que teve uma venda
+)
+var datalimite = 
+	EDATE (dataultimavenda, -12)
+var yoy = calculate(
+	[faturamento],
+	dateadd(calendario[data],-12, month), // argumento removendo o filtro
+	filter( all(calendário), calendario[data] <= datalimite) // argumento limitando as datas
+)
+return
+
+
+
+Medida para YOY (Diferença em Porcentagem)
+YOY Vendas % =
+VAR VendasAnoAtual = [Total Vendas]
+VAR VendasAnoAnterior = [Vendas Ano Anterior]
+RETURN
+    IF(
+        NOT ISBLANK(VendasAnoAnterior) && VendasAnoAnterior <> 0,
+        DIVIDE(VendasAnoAtual - VendasAnoAnterior, VendasAnoAnterior),
+        BLANK()
+    )
+
+
+Assumindo que sua DimCalendario tem uma coluna [Número da Semana] ou [WeekNumber] e que você quer comparar a semana atual com a semana imediatamente anterior.
+
+Vendas Semana Anterior =
+CALCULATE(
+    [Total Vendas],
+    DATEADD(DimCalendario[Data], -1, WEEK)
+)
+
+
+
+WTD
+
+Vendas WTD Semana Anterior =
+VAR DataMaxNoContexto = MAX(DimCalendario[Data])
+VAR DiaDaSemanaAtual = CALCULATE(MAX(DimCalendario[DiaDaSemana]), DimCalendario[Data] = DataMaxNoContexto)
+VAR SemanaAnteriorData = DataMaxNoContexto - 7 -- Encontra a data equivalente na semana anterior
+
+RETURN
+    CALCULATE(
+        [Total Vendas], -- Sua medida base de vendas (ex: SUM(FatosVendas[ValorVenda]))
+        FILTER(
+            ALL(DimCalendario), -- Remove filtros de data existentes na DimCalendario
+            DimCalendario[DiaDaSemana] <= DiaDaSemanaAtual -- Filtra apenas os dias da semana até o dia atual
+            &&
+            DimCalendario[Data] >= (SemanaAnteriorData - WEEKDAY(SemanaAnteriorData, 2) + 1) -- Início da semana anterior (ajuste para segunda-feira como 1)
+            &&
+            DimCalendario[Data] <= SemanaAnteriorData -- Fim do período na semana anterior (o mesmo dia da semana)
+        )
+    )
+
+Vendas WTD Semana Anterior % =
+VAR VendasWTDAtual = [Total Vendas] -- Sua medida base de vendas
+VAR VendasWTDSemanaAnterior = [Vendas WTD Semana Anterior]
+RETURN
+    IF(
+        NOT ISBLANK(VendasWTDSemanaAnterior) && VendasWTDSemanaAnterior <> 0,
+        DIVIDE(VendasWTDAtual - VendasWTDSemanaAnterior, VendasWTDSemanaAnterior),
+        BLANK()
+    )
+
